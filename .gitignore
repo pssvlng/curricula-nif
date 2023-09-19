@@ -1,1 +1,3 @@
 *.rdf
+*.ttl
+__pycache__

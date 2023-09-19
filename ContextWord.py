@@ -1,4 +1,4 @@
-from .BaseWord import BaseWord
+from BaseWord import BaseWord
 
 class ContextWord(BaseWord):           
     def __init__(self):
