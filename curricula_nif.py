@@ -180,7 +180,7 @@ def add_wordnet_annotations(g, subject, alt_label):
             
             for word in words:
                 weighted_word = WeightedWord(word)
-                words_to_compare = builder.build(word, ['hypernym', 'hyponym', 'meronym', 'holonym'], 1)
+                words_to_compare = builder.build(word, ['hypernym', 'hyponym', 'meronym', 'holonym'], 0)
                 weighted_word.weight = classifier.classify(alt_label, ' '.join(words_to_compare))
                 weighted_words.append(weighted_word)
 
@@ -208,7 +208,7 @@ def add_wordnet_annotations(g, subject, alt_label):
     return g        
 
 def get_nif_literals():        
-    nlp.max_length = 3000000
+    #nlp.max_length = 3000000
                          
     sparql = SPARQLWrapper("https://edu.yovisto.com/sparql")
     sparql_query = """
@@ -216,7 +216,7 @@ def get_nif_literals():
                  ?s a <https://w3id.org/curriculum/CompetenceItem>  .
                  ?s <http://www.w3.org/2004/02/skos/core#prefLabel>  ?l .
                  optional {?s <http://purl.org/dc/terms/description>  ?d .} 
-             }                                        
+             }                                               
     """
     sparql.setQuery(sparql_query)
     sparql.setReturnFormat(JSON)
@@ -226,7 +226,7 @@ def get_nif_literals():
     cntr = 0
     for result in results["results"]["bindings"]:
         subject = result["s"]["value"]                
-        obj_prefLabel = result["l"]["value"]        
+        obj_prefLabel = result["l"]["value"]                
         #obj_description = result["d"]["value"]
         text = remove_html_tags_and_whitespace(obj_prefLabel)
         if text:
