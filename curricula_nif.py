@@ -1,6 +1,6 @@
 import json
 from rdflib import Graph, URIRef, Literal, Namespace
-from rdflib.namespace import RDF, SKOS, XSD
+from rdflib.namespace import RDF, SKOS, XSD, DCTERMS
 from typing import Optional, List, Tuple
 import requests
 from rdflib.plugins.sparql import prepareQuery
@@ -10,6 +10,9 @@ from functools import reduce
 import spacy
 from nltk.corpus import wordnet as wn
 from ContextWord import ContextWord
+from WeightedWord import WeightedWord
+from SimilarityClassifier import SimilarityClassifier
+from WordnetWordBuilder import WordnetWordBuilder
 from passivlingo_dictionary.Dictionary import Dictionary
 from passivlingo_dictionary.models.SearchParam import SearchParam
 
@@ -61,7 +64,7 @@ def tag_text(textToTag: str):
         return (result, entities)    
     try:        
         words = nlp(textToTag)                                                    
-        for word in [ent for ent in words.ents if ent.label_ in ['PER', 'LOC', 'ORG', 'MISC']]:                        
+        for word in [ent for ent in words.ents]:                        
             entities.append((word.text, "NOUN", word.lemma_, "", ""))
         
         for word in words:                        
@@ -95,6 +98,7 @@ def add_nif_context(g, subject, alt_label):
     add_unique_triple(g,context_uri, nif.isString, Literal(alt_label, lang='de'))
     add_unique_triple(g,context_uri, nif.predLang, URIRef('http://www.lexvo.org/page/iso639-3/deu'))
     add_unique_triple(g,context_uri, nif.referenceContext, sub)
+    add_unique_triple(g,sub, DCTERMS.isPartOf, context_uri)
 
     return g
 
@@ -120,7 +124,7 @@ def add_dbpedia_annotations(g, subject, alt_label):
             surface_form = annotation.get("@surfaceForm", "")
             start_index = int(annotation.get("@offset", 0))
             end_index = start_index + len(surface_form)
-            annotation_uri = URIRef(f'{subject}?nif=phrase&char={start_index},{end_index}')
+            annotation_uri = URIRef(f'{subject}?a=dbpedia-spotlite&char={start_index},{end_index}')
             dbpedia_resource = URIRef(annotation.get("@URI", ""))
             
             add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
@@ -158,7 +162,9 @@ def add_wordnet_annotations(g, subject, alt_label):
             word.lemma = t[2]
 
         merge_results.append(word)                  
-        
+
+    classifier = SimilarityClassifier(nlp)  
+    builder = WordnetWordBuilder()  
     for index, value in enumerate(merge_results):         
         if value.lemma and value.pos:   
             dict = Dictionary()
@@ -170,36 +176,47 @@ def add_wordnet_annotations(g, subject, alt_label):
             param.filterLang = 'de'    
             words = dict.findWords(param);
 
-            if len(words) > 0:                        
+            weighted_words = []
+            
+            for word in words:
+                weighted_word = WeightedWord(word)
+                words_to_compare = builder.build(word, ['hypernym', 'hyponym', 'meronym', 'holonym'], 1)
+                weighted_word.weight = classifier.classify(alt_label, ' '.join(words_to_compare))
+                weighted_words.append(weighted_word)
+
+            if len(weighted_words) > 0:                        
+                selected_word = max(weighted_words, key=lambda obj: obj.weight).word    
                 start_index = len(''.join([obj.name + obj.whitespace for obj in merge_results[:index]]))
                 end_index = start_index + len(value.name)
-                annotation_uri = URIRef(f'{subject}?nif=word&char={start_index},{end_index}')
-                ili = f'{ili_uri}{words[0].ili}'
-                ili_en = f'{ili_en_uri}{words[0].ili}'
-                olia_pos = f'{olia_uri}{words[0].pos}'
+                annotation_uri = URIRef(f'{subject}?a=spacy&char={start_index},{end_index}')
+                ili = f'{ili_uri}{selected_word.ili}'
+                ili_en = f'{ili_en_uri}{selected_word.ili}'
+                olia_pos = f'{olia_uri}{selected_word.pos}'
 
-                add_unique_triple(g,annotation_uri, RDF.type, nif.Word)
+                add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
                 add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
                 add_unique_triple(g,annotation_uri, RDF.type, URIRef(olia_pos))        
                 add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
                 add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
                 add_unique_triple(g,annotation_uri, nif.anchorOf, Literal(value.name))
                 add_unique_triple(g,annotation_uri, nif.predLang, URIRef('http://www.lexvo.org/page/iso639-3/deu'))
-                add_unique_triple(g,annotation_uri, nif.referenceContext, context_uri)                       
+                add_unique_triple(g,annotation_uri, nif.referenceContext, context_uri)                                       
+                add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('https://spacy.io'))
                 add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili))
                 add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili_en))
 
     return g        
 
-def get_nif_literals():    
-    nif = Namespace("http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#")
+def get_nif_literals():        
+    nlp.max_length = 3000000
+                         
     sparql = SPARQLWrapper("https://edu.yovisto.com/sparql")
     sparql_query = """
     select distinct * where {
                  ?s a <https://w3id.org/curriculum/CompetenceItem>  .
                  ?s <http://www.w3.org/2004/02/skos/core#prefLabel>  ?l .
                  optional {?s <http://purl.org/dc/terms/description>  ?d .} 
-             }                           
+             }                                        
     """
     sparql.setQuery(sparql_query)
     sparql.setReturnFormat(JSON)
@@ -209,17 +226,18 @@ def get_nif_literals():
     cntr = 0
     for result in results["results"]["bindings"]:
         subject = result["s"]["value"]                
-        obj_prefLabel = result["l"]["value"]
+        obj_prefLabel = result["l"]["value"]        
         #obj_description = result["d"]["value"]
         text = remove_html_tags_and_whitespace(obj_prefLabel)
-        add_nif_context(graph, subject, text)
-        add_dbpedia_annotations(graph, subject, text)
-        add_wordnet_annotations(graph, subject, text)
+        if text:
+            add_nif_context(graph, subject, text)
+            add_dbpedia_annotations(graph, subject, text)
+            add_wordnet_annotations(graph, subject, text)
         cntr +=1
-        if (cntr % 100 == 0):                        
+        if (cntr % 100 == 0):                                                
             print(f'{cntr} results of {len(results["results"]["bindings"])} processed')
         
-    output_file = "nif.ttl"
+    output_file = "curricula_nif.ttl"
     graph.serialize(destination=output_file, format="turtle", encoding='UTF-8')            
 
 get_nif_literals()            
