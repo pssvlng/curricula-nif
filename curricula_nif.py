@@ -153,21 +153,21 @@ def get_nif_literals_curriculum():
                  ?s a <https://w3id.org/curriculum/CompetenceItem>  .
                  ?s <http://www.w3.org/2004/02/skos/core#prefLabel>  ?l .             
              }                                               
-             LIMIT 20
+             
     """,
     """
     select distinct * where {
                  ?s a <https://w3id.org/curriculum/FederalState>  .
                  ?s <http://www.w3.org/2004/02/skos/core#prefLabel>  ?l .                  
              }       
-             LIMIT 10                                        
+                                                     
     """,
     """
     select distinct * where {                                  
                 ?s a <https://w3id.org/dini/dini-ns/Curriculum>  .
                 ?s <http://www.w3.org/2004/02/skos/core#prefLabel>  ?l .           
              }       
-             LIMIT 10                                        
+                                                     
     """
     ]
 

@@ -103,7 +103,8 @@ def add_wordnet_annotations_oersi(g, subject, title, description, lang):
         {'p': 'title', 'text_to_annotate': title},
         {'p': 'description', 'text_to_annotate': description}        
     ]
-
+    exclusions = ['--',"'", "...", "…", "`", '"', '|', '-', '.', ':', '!', '?', ',', '%', '^', '(', ')', '$', '#', '@', '&', '*']
+    
     for item in context_uri_list:
         if item["text_to_annotate"]:
             context_uri = URIRef(f'{subject}_nif=context_p={item["p"]}_char=0,{len(item["text_to_annotate"])}')
@@ -121,7 +122,8 @@ def add_wordnet_annotations_oersi(g, subject, title, description, lang):
                 word.dbPediaUrl = t[4]            
                 word.lang = lang
                 
-                if len([x for x in ['--',"'", "...", "…", "`", '"', '|', '-', '.', ':', '!', '?', ',', '%', '^', '(', ')', '$', '#', '@', '&', '*'] if x in t[0]]) <= 0 and t[1] in ['VERB', 'NOUN', 'ADV', 'ADJ']:                
+                
+                if len([x for x in exclusions if x in t[0]]) <= 0 and t[1] in ['VERB', 'NOUN', 'ADV', 'ADJ']:                
                     word.pos = getSpacyToWordnetPosMapping(t[1])                     
                     word.lemma = t[2]
 
@@ -130,7 +132,7 @@ def add_wordnet_annotations_oersi(g, subject, title, description, lang):
             classifier = SimilarityClassifier(nlp[lang])  
             builder = WordnetWordBuilder()  
             for index, value in enumerate(merge_results):         
-                if value.lemma and value.pos and len(value.lemma) > 1:   
+                if value.lemma and value.pos and len(value.lemma) > 1 and value.lemma not in exclusions:   
                     dict = Dictionary()
                     param = SearchParam()    
                     param.lang = lang
@@ -177,7 +179,7 @@ def add_wordnet_annotations_oersi(g, subject, title, description, lang):
     return g        
 
 
-def oersi_part_async(graph, results, thread_nr):
+def oersi_part_async(graph, results, thread_nr, lang=None):
     start_time = dt.now()
     cntr = 0
     for result in results:
@@ -186,14 +188,18 @@ def oersi_part_async(graph, results, thread_nr):
         description = result["description"]["value"]                                        
         title = remove_html_tags_and_whitespace(title)
         description = remove_html_tags_and_whitespace(description)            
-        lang = 'en'
-        if title:
-            lang = detect(title)                
-        elif description:    
-            lang = detect(description)
-        if lang not in ['en', 'de']:
-                lang = 'en'        
-        if (title or description) and lang == 'de':                
+        if not lang:            
+            try:
+                if title:
+                    lang = detect(title)                
+                elif description:    
+                    lang = detect(description)
+                if lang not in ['en', 'de']:
+                        lang = 'en'
+            except:
+                lang = 'en'
+                            
+        if title or description:                
             add_nif_context_oersi(graph, subject, title, description, lang)
             add_dbpedia_annotations_oersi(graph, subject, title, description, lang)
             add_wordnet_annotations_oersi(graph, subject, title, description, lang)
@@ -210,18 +216,21 @@ def get_nif_literals_oersi_async(thread_cnt, thread_nr):
     #nlp.max_length = 3000000
                          
     sparql = SPARQLWrapper("https://edu.yovisto.com/sparql")
+    
     sparql_queries = [    
     """
     select distinct * where {                                  
                 ?s a <https://edu.yovisto.com/ontology/oersi/Source>  .
                 ?s <http://purl.org/dc/terms/title>  ?title .         
                 ?s <http://purl.org/dc/terms/description> ?description .                  
+                ?s <http://purl.org/dc/terms/language> 'de' .                  
              }                           
-             LIMIT 100    
+               
     """
     ]        
 
     graph = Graph()    
+    lang = 'de'
     for query in sparql_queries:
         sparql.setQuery(query)
         sparql.setReturnFormat(JSON)
@@ -229,8 +238,9 @@ def get_nif_literals_oersi_async(thread_cnt, thread_nr):
 
         list_length = len(results)
         part_length = list_length // thread_cnt
-        parts = [results[i:i + part_length] for i in range(0, list_length, part_length)]                
-        graph = oersi_part_async(graph, parts[thread_nr], thread_nr)                
+        parts = [results[i:i + part_length] for i in range(0, list_length, part_length)]    
+        parts = parts[thread_nr]            
+        graph = oersi_part_async(graph, parts, thread_nr, lang)                
 
     return graph
 

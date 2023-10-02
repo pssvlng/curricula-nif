@@ -1,3 +1,6 @@
 *.rdf
 *.ttl
 __pycache__
+*.bak
+*.zip
+*.json
