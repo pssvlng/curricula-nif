@@ -1,19 +1,13 @@
-import json
-from rdflib import Graph, URIRef, Literal, Namespace
-from rdflib.namespace import RDF, SKOS, XSD, DCTERMS
-from typing import Optional, List, Tuple
+from rdflib import Graph, URIRef, Literal
+from rdflib.namespace import RDF, XSD
 import requests
-from rdflib.plugins.sparql import prepareQuery
 from SPARQLWrapper import SPARQLWrapper, JSON
-from functools import reduce
 from ContextWord import ContextWord
 from WeightedWord import WeightedWord
 from SimilarityClassifier import SimilarityClassifier
 from WordnetWordBuilder import WordnetWordBuilder
 from passivlingo_dictionary.Dictionary import Dictionary
 from passivlingo_dictionary.models.SearchParam import SearchParam
-from langdetect import detect
-from datetime import datetime as dt
 
 from shared import *
 

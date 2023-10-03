@@ -1,11 +1,7 @@
-import json
-from rdflib import Graph, URIRef, Literal, Namespace
-from rdflib.namespace import RDF, SKOS, XSD, DCTERMS
-from typing import Optional, List, Tuple
+from rdflib import Graph, URIRef, Literal
+from rdflib.namespace import RDF, XSD, DCTERMS
 import requests
-from rdflib.plugins.sparql import prepareQuery
 from SPARQLWrapper import SPARQLWrapper, JSON
-from functools import reduce
 from ContextWord import ContextWord
 from WeightedWord import WeightedWord
 from SimilarityClassifier import SimilarityClassifier
@@ -74,7 +70,7 @@ def add_dbpedia_annotations_oersi(g, subject, title, description, lang):
                 data = response.json()        
                 annotations = data.get("Resources", [])
 
-                for idx, annotation in enumerate(annotations, start=1):            
+                for _, annotation in enumerate(annotations, start=1):            
                     surface_form = annotation.get("@surfaceForm", "")
                     start_index = int(annotation.get("@offset", 0))
                     end_index = start_index + len(surface_form)
