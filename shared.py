@@ -1,4 +1,5 @@
 
+import json
 import spacy
 from nltk.corpus import wordnet as wn
 from rdflib import Namespace
@@ -15,6 +16,12 @@ lexvo['de'] = 'http://www.lexvo.org/page/iso639-3/deu'
 spotlight_url = {}
 spotlight_url['de'] = 'https://wlo.yovisto.com/spotlight/annotate'
 spotlight_url['en'] = 'https://wlo.yovisto.com/spotlight/annotate'
+
+word_compare_lookup = {}
+with open('de_0.json', "r") as json_file:
+    word_compare_lookup['de_0'] = json.load(json_file)
+with open('de_1.json', "r") as json_file:
+    word_compare_lookup['de_1'] = json.load(json_file)      
 
 nif = Namespace("http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#")
 dbpedia = Namespace("http://dbpedia.org/resource/")

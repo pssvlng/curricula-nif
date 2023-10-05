@@ -9,4 +9,4 @@ class WeightedWord:
         self.weight = 0.0
 
     def __str__(self):
-        return "WeightedWord()"
+        return f"WeightedWord({self.word.wordKey}) - {self.word.synonyms} - {self.word.definition}"

@@ -16,12 +16,12 @@ class SimilarityClassifier:
             doc2 = self.nlp(' '.join(list2))
         except:
             print('Could not classify:')
-            print('')
-            print(text1)
-            print('AND')
-            print('')
-            print(text2)
-            return 0.0        
+        #     print('')
+        #     print(text1)
+        #     print('AND')
+        #     print('')
+        #     print(text2)
+        #     return 0.0        
 
         return doc1.similarity(doc2)
 

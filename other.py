@@ -34,6 +34,7 @@ def create_synset_hash_links(lang: str, categories: list, depth: int):
             print(f'{cntr} results of {len(synsets)} processed')
     return result 
 
+
 #Main Program
 if len(sys.argv) == 3:
     lang = sys.argv[1]
@@ -43,6 +44,5 @@ if len(sys.argv) == 3:
     with open(file_path, "w", encoding='utf-8') as json_file:    
         json.dump(data, json_file, ensure_ascii=False, indent=4)
 
-# with open('de.json', "r") as json_file:
-#     data = json.load(json_file)
+
 

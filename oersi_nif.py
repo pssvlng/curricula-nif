@@ -1,3 +1,5 @@
+from collections import namedtuple
+import html
 from rdflib import Graph, URIRef, Literal
 from rdflib.namespace import RDF, XSD, DCTERMS
 import requests
@@ -12,6 +14,7 @@ from langdetect import detect
 from datetime import datetime as dt
 from shared import *
 import sys
+import pandas as pd
 
 def add_nif_context_oersi(g, subject, title, description, lang):
     sub = URIRef(subject)                       
@@ -289,14 +292,154 @@ def get_nif_literals_oersi():
 
     return graph       
 
+def classifier_comparison(thread_cnt, thread_nr):
+    lang = 'de'
+    nlp[lang].max_length = 3000000
+                         
+    sparql = SPARQLWrapper("https://edu.yovisto.com/sparql")
+    
+    sparql_queries = [    
+    """
+    select distinct * where {                                  
+                ?s a <https://edu.yovisto.com/ontology/oersi/Source>  .
+                ?s <http://purl.org/dc/terms/title>  ?title .         
+                ?s <http://purl.org/dc/terms/description> ?description .                  
+                ?s <http://purl.org/dc/terms/language> 'de' .                  
+             }                           
+               
+    """
+    ]        
+    
+    
+    classifier = SimilarityClassifier(nlp[lang])  
+    exclusions = ['--',"'", "...", "…", "`", '"', '|', '-', '.', ':', '!', '?', ',', '%', '^', '(', ')', '$', '#', '@', '&', '*']    
+    delta_results = []
+    cntr = 0
+    token_cntr = 0
+    for query in sparql_queries:
+        sparql.setQuery(query)
+        sparql.setReturnFormat(JSON)
+        results = sparql.query().convert()["results"]["bindings"]    
+
+        list_length = len(results)
+        part_length = list_length // thread_cnt
+        parts = [results[i:i + part_length] for i in range(0, list_length, part_length)]    
+        parts = parts[thread_nr]            
+        for part in parts[:20]:
+            title = part["title"]["value"]                
+            description = part["description"]["value"]                                        
+            title = remove_html_tags_and_whitespace(title)
+            description = remove_html_tags_and_whitespace(description)            
+            context_uri_list = [
+                {'p': 'title', 'text_to_annotate': title},
+                {'p': 'description', 'text_to_annotate': description}        
+            ]
+                        
+            for item in context_uri_list:
+                if item["text_to_annotate"]:                    
+                    tag_results = tag_text(item["text_to_annotate"], lang)
+                    wordTags = tag_results[0]                    
+
+                    merge_results = []
+                    for t in wordTags:            
+                        word = ContextWord()            
+                        word.name = t[0]
+                        word.whitespace = t[3]            
+                        word.dbPediaUrl = t[4]            
+                        word.lang = lang                        
+                        
+                        if len([x for x in exclusions if x in t[0]]) <= 0 and t[1] in ['VERB', 'NOUN', 'ADV', 'ADJ']:                
+                            word.pos = getSpacyToWordnetPosMapping(t[1])                     
+                            word.lemma = t[2]
+
+                        merge_results.append(word)                              
+                    
+                    for idx, value in enumerate(merge_results):         
+                        if value.lemma and value.pos and len(value.lemma) > 1 and value.lemma not in exclusions:   
+                            token_cntr += 1
+                            dict = Dictionary()
+                            param = SearchParam()    
+                            param.lang = lang
+                            param.woi = value.lemma
+                            param.lemma = value.lemma
+                            param.pos = value.pos
+                            param.filterLang = lang    
+                            words = dict.findWords(param);
+
+                            weighted_words = {}                            
+                            weighted_words['level_0'] = []
+                            weighted_words['level_1'] = []                            
+                                                        
+                            if len(words) > 100:
+                                print(f"{value.lemma} - {value.pos} > 100 results")
+
+                            for word in words[:20]:                                
+                                for level in range(0,2):
+                                    weighted_word = WeightedWord(word)               
+                                    start_idx = 0 if idx - CONTEXT_MARGIN < 0 else idx - CONTEXT_MARGIN
+                                    end_idx = len(merge_results) if idx + CONTEXT_MARGIN >= len(merge_results) else idx + CONTEXT_MARGIN
+                                    sub_text = ' '.join([x.name for x in merge_results[start_idx:end_idx]])
+                                    words_to_compare = word_compare_lookup[f'{lang}_{level}'][f'{lang}-{level}-{word.ili}']                                         
+                                    weighted_word.weight = classifier.classify(sub_text, words_to_compare)                    
+                                    weighted_words[f'level_{level}'].append(weighted_word)
+                                
+                            if len(weighted_words['level_0']) and len(weighted_words['level_1']) > 0:                        
+                                selected_word_0 = max(weighted_words['level_0'], key=lambda obj: obj.weight)    
+                                selected_word_1 = max(weighted_words['level_1'], key=lambda obj: obj.weight)    
+                                if selected_word_0.word.ili != selected_word_1.word.ili:                                    
+                                    delta_results.append(ClassificationDelta(text_to_annotate=item["text_to_annotate"], word_evaluated=value.name, lemma=value.lemma, pos=value.pos, level_1_result=selected_word_0, level_1_rdf_link=selected_word_0.word.ili, level_2_result=selected_word_1, level_2_rdf_link=selected_word_1.word.ili))
+
+            cntr += 1
+            if (cntr % 10 == 0):
+                print(f'{cntr} records of {len(parts)} processed')                                    
+                print(f'{len(delta_results)} dissimilar classifications for {token_cntr} tokens evaluated: {len(delta_results)/token_cntr} %')                                    
+
+    return (delta_results, token_cntr)            
+                                
+
 #Main Program
+ClassificationDelta = namedtuple('ClassificationDelta', ['text_to_annotate', 'word_evaluated', 'lemma', 'pos', 'level_1_result','level_1_rdf_link', 'level_2_result', 'level_2_rdf_link'])
+CONTEXT_MARGIN = 15
+
 if len(sys.argv) == 3:
     thread_cnt = int(sys.argv[1])
     thread_nr = int(sys.argv[2])
-    graph = get_nif_literals_oersi_async(thread_cnt, thread_nr)            
-    output_file = f"oersi_nif_{thread_nr}.ttl"    
-    graph.serialize(destination=output_file, format="turtle", encoding='UTF-8')            
+
+    # graph = get_nif_literals_oersi_async(thread_cnt, thread_nr)            
+    # output_file = f"oersi_nif_{thread_nr}.ttl"    
+    # graph.serialize(destination=output_file, format="turtle", encoding='UTF-8')            
+
+    results = classifier_comparison(thread_cnt, thread_nr)
+    deltas = results[0]
+    token_cntr = results[1]
+    print("END OF EVALUATION")
+    print(f'{len(deltas)} dissimilar classifications for {token_cntr} tokens evaluated: {(len(deltas)/token_cntr) * 100} %')                                    
+    df = pd.DataFrame(deltas)        
+
+    def format_annotation_text(row):
+        word_evaluated = row['word_evaluated']
+        text_to_annotate = str(row['text_to_annotate'])        
+        replacement_text = f'<span style="background-color: coral;">{word_evaluated}</span>'
+        return text_to_annotate.replace(word_evaluated, replacement_text)
+        
+    df['text_to_annotate'] = df.apply(format_annotation_text, axis=1)
+    html_table = df.to_html(
+        formatters=
+        {
+         'level_1_rdf_link': lambda x: f'<a href="https://en-word.net/ttl/ili/{x}" target="_blank">{x}</a>', 
+         'level_2_rdf_link': lambda x: f'<a href="https://en-word.net/ttl/ili/{x}" target="_blank">{x}</a>'
+        }, 
+        render_links=True, 
+        escape=False
+        )    
+    html_file_path = f'de_{thread_cnt}_{thread_nr}.html'    
+    with open(html_file_path, 'w', encoding='utf-8') as html_file:    
+        html_file.write(html_table)
+        
 else:
     graph = get_nif_literals_oersi()            
     output_file = "oersi_nif.ttl"    
-    graph.serialize(destination=output_file, format="turtle", encoding='UTF-8')            
+    graph.serialize(destination=output_file, format="turtle", encoding='UTF-8')          
+
+
+

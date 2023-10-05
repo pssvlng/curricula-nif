@@ -4,3 +4,5 @@ __pycache__
 *.bak
 *.zip
 *.json
+*.html
+samples
