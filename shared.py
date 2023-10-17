@@ -31,6 +31,7 @@ ili_uri = "http://ili.globalwordnet.org/ili/"
 ili_en_uri = "https://en-word.net/ttl/ili/"
 olia_uri = "http://purl.org/olia/olia.owl#"
 olia_ns = Namespace("http://purl.org/olia/olia.owl#")
+oersi_ns = Namespace("https://edu.yovisto.com/resource/oersi#")
 
 def remove_html_tags_and_whitespace(input_string):
     soup = BeautifulSoup(input_string, 'html.parser')        

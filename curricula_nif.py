@@ -17,12 +17,12 @@ def add_nif_context(g, subject, alt_label, lang='de'):
     
     context_uri = URIRef(f'{subject}_nif=context_char=0,{len(alt_label)}')
     add_unique_triple(g,context_uri, RDF.type, nif.Context)
-    add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+    #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
     add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
     add_unique_triple(g,context_uri, nif.endIndex, Literal(len(alt_label), datatype=XSD.nonNegativeInteger))
     add_unique_triple(g,context_uri, nif.isString, Literal(alt_label, lang=lang))
     add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
-    add_unique_triple(g,context_uri, nif.referenceContext, sub)
+    #add_unique_triple(g,context_uri, nif.referenceContext, sub)
     add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
     add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)
 
@@ -46,7 +46,7 @@ def add_dbpedia_annotations(g, subject, alt_label, lang='de'):
         data = response.json()        
         annotations = data.get("Resources", [])
 
-        for idx, annotation in enumerate(annotations, start=1):            
+        for _, annotation in enumerate(annotations, start=1):            
             surface_form = annotation.get("@surfaceForm", "")
             start_index = int(annotation.get("@offset", 0))
             end_index = start_index + len(surface_form)
@@ -54,7 +54,7 @@ def add_dbpedia_annotations(g, subject, alt_label, lang='de'):
             dbpedia_resource = URIRef(annotation.get("@URI", ""))
             
             add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
-            add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
+            #add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
             add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
             add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
             add_unique_triple(g,annotation_uri, nif.anchorOf, Literal(surface_form))
@@ -63,14 +63,15 @@ def add_dbpedia_annotations(g, subject, alt_label, lang='de'):
             add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('http://www.dbpedia-spotlight.com'))
             add_unique_triple(g,annotation_uri, itsrdf.taConfidence, Literal(annotation.get("@similarityScore", "0")))
             add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, dbpedia_resource)
-            add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
-            add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
+            #add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
+            #add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
         
         return g
     else:
         print(f"Error: {response.status_code} - {response.text}")
 
 def add_wordnet_annotations(g, subject, alt_label, lang='de'):            
+    exclusions = ['--',"'", "...", "…", "`", '"', '|', '-', '.', ':', '!', '?', ',', '%', '^', '(', ')', '$', '#', '@', '&', '*']
     context_uri = URIRef(f'{subject}_nif=context_char=0,{len(alt_label)}')
 
     tag_results = tag_text(alt_label, lang)
@@ -91,10 +92,9 @@ def add_wordnet_annotations(g, subject, alt_label, lang='de'):
 
         merge_results.append(word)                  
 
-    classifier = SimilarityClassifier(nlp[lang])  
-    builder = WordnetWordBuilder()  
+    classifier = SimilarityClassifier(nlp[lang])      
     for index, value in enumerate(merge_results):         
-        if value.lemma and value.pos:   
+        if value.lemma and value.pos and len(value.lemma) > 1 and value.lemma not in exclusions:   
             dict = Dictionary()
             param = SearchParam()    
             param.lang = lang
@@ -108,8 +108,8 @@ def add_wordnet_annotations(g, subject, alt_label, lang='de'):
             
             for word in words:
                 weighted_word = WeightedWord(word)
-                words_to_compare = builder.build(word, ['hypernym', 'hyponym', 'meronym', 'holonym'], 0)
-                weighted_word.weight = classifier.classify(alt_label, ' '.join(words_to_compare))
+                words_to_compare = word_compare_lookup[f'{lang}_1'][f'{lang}-1-{word.ili}']                                         
+                weighted_word.weight = classifier.classify(alt_label, words_to_compare)
                 weighted_words.append(weighted_word)
 
             if len(weighted_words) > 0:                        
@@ -122,7 +122,7 @@ def add_wordnet_annotations(g, subject, alt_label, lang='de'):
                 olia_pos = f'{olia_uri}{selected_word.pos}'
 
                 add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
-                add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
+                #add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
                 add_unique_triple(g,annotation_uri, RDF.type, URIRef(olia_pos))        
                 add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
                 add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
@@ -132,8 +132,8 @@ def add_wordnet_annotations(g, subject, alt_label, lang='de'):
                 add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('https://spacy.io'))
                 add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili))
                 add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili_en))
-                add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
-                add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
+                #add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
+                #add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
 
     return g             
 

@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 import html
 from rdflib import Graph, URIRef, Literal
 from rdflib.namespace import RDF, XSD, DCTERMS
@@ -16,18 +16,18 @@ from shared import *
 import sys
 import pandas as pd
 
-def add_nif_context_oersi(g, subject, title, description, lang):
+def add_nif_context_oersi(g, subject, title, description, keyword, keyword_key, lang):
     sub = URIRef(subject)                       
     
     if title:
         context_uri = URIRef(f'{subject}_nif=context_p=title_char=0,{len(title)}')
         add_unique_triple(g,context_uri, RDF.type, nif.Context)
-        add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+        #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
         add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.endIndex, Literal(len(title), datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.isString, Literal(title, lang=lang))
         add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
-        add_unique_triple(g,context_uri, nif.referenceContext, sub)
+        #add_unique_triple(g,context_uri, nif.referenceContext, sub)
         add_unique_triple(g,context_uri, nif.wasConvertedFrom, DCTERMS.title)    
         add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
         add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)
@@ -35,22 +35,36 @@ def add_nif_context_oersi(g, subject, title, description, lang):
     if description:
         context_uri = URIRef(f'{subject}_nif=context_p=description_char=0,{len(description)}')
         add_unique_triple(g,context_uri, RDF.type, nif.Context)
-        add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+        #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
         add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.endIndex, Literal(len(description), datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.isString, Literal(description, lang=lang))
         add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
-        add_unique_triple(g,context_uri, nif.referenceContext, sub)
+        #add_unique_triple(g,context_uri, nif.referenceContext, sub)
         add_unique_triple(g,context_uri, nif.wasConvertedFrom, DCTERMS.description)    
         add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
         add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)
 
+    if keyword:    
+        context_uri = URIRef(f'{subject}_nif=context_p={keyword_key}_char=0,{len(keyword)}')
+        add_unique_triple(g,context_uri, RDF.type, nif.Context)
+        #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+        add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
+        add_unique_triple(g,context_uri, nif.endIndex, Literal(len(keyword), datatype=XSD.nonNegativeInteger))
+        add_unique_triple(g,context_uri, nif.isString, Literal(keyword, lang=lang))
+        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
+        #add_unique_triple(g,context_uri, nif.referenceContext, sub)
+        add_unique_triple(g,context_uri, nif.wasConvertedFrom, oersi_ns.keywords)    
+        add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
+        add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)        
+
     return g
 
-def add_dbpedia_annotations_oersi(g, subject, title, description, lang):                    
+def add_dbpedia_annotations_oersi(g, subject, title, description, keyword, keyword_key, lang):                                                    
     context_uri_list = [
         {'p': 'title', 'text_to_annotate': title},
-        {'p': 'description', 'text_to_annotate': description}        
+        {'p': 'description', 'text_to_annotate': description},   
+        {'p': f'{keyword_key}', 'text_to_annotate': keyword}                     
     ]
 
     for item in context_uri_list:
@@ -66,41 +80,43 @@ def add_dbpedia_annotations_oersi(g, subject, title, description, lang):
             params = {
                 "text": text_to_annotate,
             }
+            try:
+                response = requests.get(spotlight_url[lang], params=params, headers=headers)
+                
+                if response.status_code == 200:
+                    data = response.json()        
+                    annotations = data.get("Resources", [])
 
-            response = requests.get(spotlight_url[lang], params=params, headers=headers)
-            
-            if response.status_code == 200:
-                data = response.json()        
-                annotations = data.get("Resources", [])
-
-                for _, annotation in enumerate(annotations, start=1):            
-                    surface_form = annotation.get("@surfaceForm", "")
-                    start_index = int(annotation.get("@offset", 0))
-                    end_index = start_index + len(surface_form)
-                    annotation_uri = URIRef(f'{subject}_a=dbpedia-spotlite_p={item["p"]}_char={start_index},{end_index}')
-                    dbpedia_resource = URIRef(annotation.get("@URI", ""))
-                    
-                    add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
-                    add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
-                    add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
-                    add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
-                    add_unique_triple(g,annotation_uri, nif.anchorOf, Literal(surface_form))
-                    add_unique_triple(g,annotation_uri, nif.predLang, URIRef(lexvo[lang]))
-                    add_unique_triple(g,annotation_uri, nif.referenceContext, context_uri)
-                    add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('http://www.dbpedia-spotlight.com'))
-                    add_unique_triple(g,annotation_uri, itsrdf.taConfidence, Literal(annotation.get("@similarityScore", "0")))
-                    add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, dbpedia_resource)        
-                    add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
-                    add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
-            else:
-                print(f"Error: {response.status_code} - {response.text}")
-
+                    for _, annotation in enumerate(annotations, start=1):            
+                        surface_form = annotation.get("@surfaceForm", "")
+                        start_index = int(annotation.get("@offset", 0))
+                        end_index = start_index + len(surface_form)
+                        annotation_uri = URIRef(f'{subject}_a=dbpedia-spotlite_p={item["p"]}_char={start_index},{end_index}')
+                        dbpedia_resource = URIRef(annotation.get("@URI", ""))
+                        
+                        add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
+                        #add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
+                        add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
+                        add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
+                        add_unique_triple(g,annotation_uri, nif.anchorOf, Literal(surface_form))
+                        add_unique_triple(g,annotation_uri, nif.predLang, URIRef(lexvo[lang]))
+                        add_unique_triple(g,annotation_uri, nif.referenceContext, context_uri)
+                        add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('http://www.dbpedia-spotlight.com'))
+                        add_unique_triple(g,annotation_uri, itsrdf.taConfidence, Literal(annotation.get("@similarityScore", "0")))
+                        add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, dbpedia_resource)        
+                        #add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
+                        #add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
+                else:
+                    print(f"Error: {response.status_code} - {response.text}")
+            except:
+                pass
     return g    
 
-def add_wordnet_annotations_oersi(g, subject, title, description, lang):            
+def add_wordnet_annotations_oersi(g, subject, title, description, keyword, keyword_key, lang):              
     context_uri_list = [
         {'p': 'title', 'text_to_annotate': title},
-        {'p': 'description', 'text_to_annotate': description}        
+        {'p': 'description', 'text_to_annotate': description},        
+        {'p': f'{keyword_key}', 'text_to_annotate': keyword}                
     ]
     exclusions = ['--',"'", "...", "…", "`", '"', '|', '-', '.', ':', '!', '?', ',', '%', '^', '(', ')', '$', '#', '@', '&', '*']
     
@@ -128,8 +144,7 @@ def add_wordnet_annotations_oersi(g, subject, title, description, lang):
 
                 merge_results.append(word)                              
 
-            classifier = SimilarityClassifier(nlp[lang])  
-            builder = WordnetWordBuilder()  
+            classifier = SimilarityClassifier(nlp[lang])              
             for index, value in enumerate(merge_results):         
                 if value.lemma and value.pos and len(value.lemma) > 1 and value.lemma not in exclusions:   
                     dict = Dictionary()
@@ -146,10 +161,13 @@ def add_wordnet_annotations_oersi(g, subject, title, description, lang):
                     if len(words) > 100:
                         print(f"{value.lemma} - {value.pos} > 100 results")
 
-                    for word in words[:20]:
-                        weighted_word = WeightedWord(word)                    
-                        words_to_compare = builder.build(word, ['hypernym', 'hyponym', 'meronym', 'holonym'], 0)
-                        weighted_word.weight = classifier.classify(item["text_to_annotate"], ' '.join(words_to_compare))                    
+                    for word in words[:30]:
+                        weighted_word = WeightedWord(word)                          
+                        start_idx = 0 if index - CONTEXT_MARGIN < 0 else index - CONTEXT_MARGIN
+                        end_idx = len(merge_results) if index + CONTEXT_MARGIN >= len(merge_results) else index + CONTEXT_MARGIN
+                        sub_text = ' '.join([x.name for x in merge_results[start_idx:end_idx]])                  
+                        words_to_compare = word_compare_lookup[f'{lang}_1'][f'{lang}-1-{word.ili}']                                         
+                        weighted_word.weight = classifier.classify(sub_text, words_to_compare)                    
                         weighted_words.append(weighted_word)
                         
                     if len(weighted_words) > 0:                        
@@ -162,7 +180,7 @@ def add_wordnet_annotations_oersi(g, subject, title, description, lang):
                         olia_pos = f'{olia_uri}{selected_word.pos}'
 
                         add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
-                        add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
+                        #add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
                         add_unique_triple(g,annotation_uri, RDF.type, URIRef(olia_pos))        
                         add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
                         add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
@@ -172,8 +190,8 @@ def add_wordnet_annotations_oersi(g, subject, title, description, lang):
                         add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('https://spacy.io'))
                         add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili))
                         add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili_en))
-                        add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
-                        add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
+                        #add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
+                        #add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
 
     return g        
 
@@ -199,9 +217,9 @@ def oersi_part_async(graph, results, thread_nr, lang=None):
                 lang = 'en'
                             
         if title or description:                
-            add_nif_context_oersi(graph, subject, title, description, lang)
-            add_dbpedia_annotations_oersi(graph, subject, title, description, lang)
-            add_wordnet_annotations_oersi(graph, subject, title, description, lang)
+            add_nif_context_oersi(graph, subject, title, description, '', '_', lang)
+            add_dbpedia_annotations_oersi(graph, subject, title, description, '', '_', lang)
+            add_wordnet_annotations_oersi(graph, subject, title, description, '', '_', lang)
         cntr +=1
         if (cntr % 10 == 0):                                                
             print(f'{cntr} results of {len(results)} in thread {thread_nr} processed')
@@ -210,6 +228,60 @@ def oersi_part_async(graph, results, thread_nr, lang=None):
             print(f'Running time for thread {thread_nr}: {elapsed.seconds // 3600}:{elapsed.seconds // 60 % 60}')
     
     return graph        
+
+def get_keyword_key(subject):
+    keyword_key_cntr[subject] += 1
+    return f'keyword{keyword_key_cntr[subject]}'
+
+def oersi_part_keywords_async(graph, results, thread_nr, lang=None):
+    start_time = dt.now()
+    cntr = 0        
+    for result in results:
+        subject = result["s"]["value"]                         
+        keyword = remove_html_tags_and_whitespace(result["keywords"]["value"]) if 'keywords' in result else None                                        
+                        
+        # try:
+        #     if keyword:
+        #         lang = detect(keyword)                
+        # except:
+        #     lang = 'en'
+        lang = 'de'
+                            
+        if (keyword) and lang == 'de':                
+            key = get_keyword_key(subject)
+            add_nif_context_oersi(graph, subject, None, None, keyword, key, lang)
+            add_dbpedia_annotations_oersi(graph, subject, None, None, keyword, key, lang)
+            add_wordnet_annotations_oersi(graph, subject, None, None, keyword, key, lang)
+        cntr +=1
+        if (cntr % 10 == 0):                                                
+            print(f'{cntr} results of {len(results)} in thread {thread_nr} processed')
+            end_time = dt.now()
+            elapsed = end_time - start_time
+            print(f'Running time for thread {thread_nr} (kewords): {elapsed.seconds // 3600}:{elapsed.seconds // 60 % 60}')
+    
+    return graph            
+
+def get_nif_literals_oersi_keywords_async(thread_cnt, thread_nr):
+    sparql = SPARQLWrapper("https://edu.yovisto.com/sparql")
+    list_length = 121894
+    part_length = list_length // thread_cnt    
+    query = """
+    select distinct * where {                                                                   
+                OPTIONAL { 
+                    ?s <https://edu.yovisto.com/resource/oersi#keywords> ?keywords . 
+                }                 
+                ?s <http://purl.org/dc/terms/language> 'de' .                  
+             }                            
+    """ 
+    query += f'LIMIT {part_length} OFFSET {part_length * thread_nr}'
+
+    graph = Graph()            
+    sparql.setQuery(query)
+    sparql.setReturnFormat(JSON)
+    results = sparql.query().convert()["results"]["bindings"]    
+    graph = oersi_part_keywords_async(graph, results, thread_nr)                
+
+    return graph
 
 def get_nif_literals_oersi_async(thread_cnt, thread_nr):
     #nlp.max_length = 3000000
@@ -435,6 +507,22 @@ if len(sys.argv) == 3:
     html_file_path = f'de_{thread_cnt}_{thread_nr}.html'    
     with open(html_file_path, 'w', encoding='utf-8') as html_file:    
         html_file.write(html_table)
+
+elif len(sys.argv) == 4:
+    thread_cnt = int(sys.argv[1])
+    thread_nr = int(sys.argv[2])
+    category = sys.argv[3]
+
+    if category == 'wlo':
+        graph = get_nif_literals_oersi_async(thread_cnt, thread_nr)            
+        output_file = f"oersi_nif_{thread_nr}.ttl"    
+        graph.serialize(destination=output_file, format="turtle", encoding='UTF-8')            
+    
+    if category == 'keywords':
+        keyword_key_cntr = defaultdict(int)
+        graph = get_nif_literals_oersi_keywords_async(thread_cnt, thread_nr)            
+        output_file = f"oersi_nif_keywords_{thread_nr}.ttl"    
+        graph.serialize(destination=output_file, format="turtle", encoding='UTF-8')                    
         
 else:
     graph = get_nif_literals_oersi()            
