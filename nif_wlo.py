@@ -214,7 +214,7 @@ def wlo_part_async(graph, results, thread_nr, lang=None):
             add_dbpedia_annotations_wlo(graph, subject, name, description, None, '_', lang)
             add_wordnet_annotations_wlo(graph, subject, name, description, None, '_', lang)
         cntr +=1
-        if (cntr % 10 == 0):                                                
+        if (cntr % 100 == 0):                                                
             print(f'{cntr} results of {len(results)} in thread {thread_nr} processed')
             end_time = dt.now()
             elapsed = end_time - start_time
@@ -246,7 +246,7 @@ def wlo_part_keywords_async(graph, results, thread_nr, lang=None):
             add_dbpedia_annotations_wlo(graph, subject, None, None, keyword, key, lang)
             add_wordnet_annotations_wlo(graph, subject, None, None, keyword, key, lang)
         cntr +=1
-        if (cntr % 10 == 0):                                                
+        if (cntr % 100 == 0):                                                
             print(f'{cntr} results of {len(results)} in thread {thread_nr} processed')
             end_time = dt.now()
             elapsed = end_time - start_time
