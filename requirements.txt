@@ -1,0 +1,5 @@
+rdflib
+SQLWrapper
+bs4
+nltk
+passivlingo_dictionary
