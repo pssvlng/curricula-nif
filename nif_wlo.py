@@ -10,6 +10,7 @@ from passivlingo_dictionary.models.SearchParam import SearchParam
 from langdetect import detect
 from datetime import datetime as dt
 from shared import *
+from const import *
 import sys
 from collections import defaultdict
 
@@ -18,39 +19,33 @@ def add_nif_context_wlo(g, subject, name, description, keyword, keyword_key, lan
     
     if name:
         context_uri = URIRef(f'{subject}_nif=context_p=name_char=0,{len(name)}')
-        add_unique_triple(g,context_uri, RDF.type, nif.Context)
-        #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+        add_unique_triple(g,context_uri, RDF.type, nif.Context)        
         add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.endIndex, Literal(len(name), datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.isString, Literal(name, lang=lang))
-        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
-        #add_unique_triple(g,context_uri, nif.referenceContext, sub)
+        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))        
         add_unique_triple(g,context_uri, nif.wasConvertedFrom, SDO.name)    
         add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
         add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)
 
     if description:
         context_uri = URIRef(f'{subject}_nif=context_p=description_char=0,{len(description)}')
-        add_unique_triple(g,context_uri, RDF.type, nif.Context)
-        #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+        add_unique_triple(g,context_uri, RDF.type, nif.Context)        
         add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.endIndex, Literal(len(description), datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.isString, Literal(description, lang=lang))
-        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
-        #add_unique_triple(g,context_uri, nif.referenceContext, sub)
+        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))        
         add_unique_triple(g,context_uri, nif.wasConvertedFrom, SDO.description)    
         add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
         add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)
 
     if keyword:
         context_uri = URIRef(f'{subject}_nif=context_p={keyword_key}_char=0,{len(keyword)}')
-        add_unique_triple(g,context_uri, RDF.type, nif.Context)
-        #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+        add_unique_triple(g,context_uri, RDF.type, nif.Context)        
         add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.endIndex, Literal(len(keyword), datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.isString, Literal(keyword, lang=lang))
-        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
-        #add_unique_triple(g,context_uri, nif.referenceContext, sub)
+        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))        
         add_unique_triple(g,context_uri, nif.wasConvertedFrom, SDO.keywords)    
         add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
         add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)
@@ -91,18 +86,15 @@ def add_dbpedia_annotations_wlo(g, subject, name, description, keyword, keyword_
                         annotation_uri = URIRef(f'{subject}_a=dbpedia-spotlite_p={item["p"]}_char={start_index},{end_index}')
                         dbpedia_resource = URIRef(annotation.get("@URI", ""))
                         
-                        add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
-                        #add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
+                        add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)                        
                         add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
                         add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
                         add_unique_triple(g,annotation_uri, nif.anchorOf, Literal(surface_form))
                         add_unique_triple(g,annotation_uri, nif.predLang, URIRef(lexvo[lang]))
                         add_unique_triple(g,annotation_uri, nif.referenceContext, context_uri)
-                        add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('http://www.dbpedia-spotlight.com'))
+                        add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('https://www.dbpedia-spotlight.org'))
                         add_unique_triple(g,annotation_uri, itsrdf.taConfidence, Literal(annotation.get("@similarityScore", "0")))
-                        add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, dbpedia_resource)        
-                        #add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
-                        #add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
+                        add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, dbpedia_resource)                                
                 else:
                     print(f"Error: {response.status_code} - {response.text}")
             except:
@@ -176,8 +168,7 @@ def add_wordnet_annotations_wlo(g, subject, name, description, keyword, keyword_
                         ili_en = f'{ili_en_uri}{selected_word.ili}'
                         olia_pos = f'{olia_uri}{selected_word.pos}'
 
-                        add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
-                        #add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
+                        add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)                        
                         add_unique_triple(g,annotation_uri, RDF.type, URIRef(olia_pos))        
                         add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
                         add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
@@ -186,9 +177,7 @@ def add_wordnet_annotations_wlo(g, subject, name, description, keyword, keyword_
                         add_unique_triple(g,annotation_uri, nif.referenceContext, context_uri)                                       
                         add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('https://spacy.io'))
                         add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili))
-                        add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili_en))
-                        #add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
-                        #add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
+                        add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili_en))                        
 
     return g        
 
@@ -363,7 +352,22 @@ def get_nif_literals_wlo():
                 print(f'Running time: {elapsed.seconds // 3600}:{elapsed.seconds // 60 % 60}')
 
     return graph       
-                               
+
+def fix_wlo_desc_inconsistencies():                         
+    sparql = SPARQLWrapper("https://edu.yovisto.com/sparql")
+    query = query_wlo_desc_inconsistancies
+    graph = Graph()    
+    sparql.setQuery(query)
+    sparql.setReturnFormat(JSON)
+    results = sparql.query().convert()    
+    
+    for result in results["results"]["bindings"]:
+        subject = result["s"]["value"]                        
+        description = result["text"]["value"]                                                
+        description = remove_html_tags_and_whitespace(description)                    
+        add_dbpedia_annotations_wlo(graph, subject, None, description, None, None, 'de')
+        add_wordnet_annotations_wlo(graph, subject, None, description, None, None, 'de')        
+    return graph                                          
 
 #Main Program
 CONTEXT_MARGIN = 15
@@ -383,7 +387,11 @@ if len(sys.argv) == 4:
         graph = get_nif_literals_wlo_keywords_async(thread_cnt, thread_nr)            
         output_file = f"wlo_nif_keywords_{thread_nr}.ttl"    
         graph.serialize(destination=output_file, format="turtle", encoding='UTF-8')            
-        
+
+    if category == 'wlo_fix':
+        graph = fix_wlo_desc_inconsistencies()
+        output_file = "wlo_fix.ttl"
+        graph.serialize(destination=output_file, format="turtle", encoding='UTF-8')            
 else:
     graph = get_nif_literals_wlo()            
     output_file = "wlo_nif.ttl"    

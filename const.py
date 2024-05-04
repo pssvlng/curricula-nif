@@ -58,3 +58,25 @@ select distinct * where {
   
 } LIMIT 10
 """
+
+query_wlo_desc_inconsistancies = """
+select  ?s ?desc ?text  where 
+{
+?desc <http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#wasConvertedFrom> <https://schema.org/description>  .
+?desc  <http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#isString> ?text .
+?desc <https://w3id.org/curriculum/isAnnotationTargetOf> ?s
+filter not exists {
+?anno <http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#referenceContext> ?desc .
+?anno <http://www.w3.org/2005/11/its/rdf#taAnnotatorsRef> <https://spacy.io>  .
+?anno a <http://purl.org/olia/olia.owl#Verb>  . }
+filter not exists {
+?anno <http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#referenceContext> ?desc .
+?anno <http://www.w3.org/2005/11/its/rdf#taAnnotatorsRef> <https://spacy.io>  .
+?anno a <http://purl.org/olia/olia.owl#Noun>  . }
+filter not exists { 
+?anno <http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#referenceContext> ?desc .
+?anno <http://www.w3.org/2005/11/its/rdf#taAnnotatorsRef> <https://spacy.io>  .
+?anno a <http://purl.org/olia/olia.owl#Adjective>  .  }
+FILTER(STR(?s) = "https://edu.yovisto.com/resource/wlo/b85471aa-07dd-4398-94dc-52d5151dc547")
+}
+"""

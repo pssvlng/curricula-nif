@@ -21,39 +21,33 @@ def add_nif_context_oersi(g, subject, title, description, keyword, keyword_key, 
     
     if title:
         context_uri = URIRef(f'{subject}_nif=context_p=title_char=0,{len(title)}')
-        add_unique_triple(g,context_uri, RDF.type, nif.Context)
-        #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+        add_unique_triple(g,context_uri, RDF.type, nif.Context)        
         add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.endIndex, Literal(len(title), datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.isString, Literal(title, lang=lang))
-        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
-        #add_unique_triple(g,context_uri, nif.referenceContext, sub)
+        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))        
         add_unique_triple(g,context_uri, nif.wasConvertedFrom, DCTERMS.title)    
         add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
         add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)
 
     if description:
         context_uri = URIRef(f'{subject}_nif=context_p=description_char=0,{len(description)}')
-        add_unique_triple(g,context_uri, RDF.type, nif.Context)
-        #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+        add_unique_triple(g,context_uri, RDF.type, nif.Context)        
         add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.endIndex, Literal(len(description), datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.isString, Literal(description, lang=lang))
-        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
-        #add_unique_triple(g,context_uri, nif.referenceContext, sub)
+        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))        
         add_unique_triple(g,context_uri, nif.wasConvertedFrom, DCTERMS.description)    
         add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
         add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)
 
     if keyword:    
         context_uri = URIRef(f'{subject}_nif=context_p={keyword_key}_char=0,{len(keyword)}')
-        add_unique_triple(g,context_uri, RDF.type, nif.Context)
-        #add_unique_triple(g,context_uri, RDF.type, nif.OffsetBasedString)
+        add_unique_triple(g,context_uri, RDF.type, nif.Context)        
         add_unique_triple(g,context_uri, nif.beginIndex, Literal(0, datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.endIndex, Literal(len(keyword), datatype=XSD.nonNegativeInteger))
         add_unique_triple(g,context_uri, nif.isString, Literal(keyword, lang=lang))
-        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))
-        #add_unique_triple(g,context_uri, nif.referenceContext, sub)
+        add_unique_triple(g,context_uri, nif.predLang, URIRef(lexvo[lang]))        
         add_unique_triple(g,context_uri, nif.wasConvertedFrom, oersi_ns.keywords)    
         add_unique_triple(g,sub, curriculum_ns.hasAnnotationTarget, context_uri)
         add_unique_triple(g,context_uri, curriculum_ns.isAnnotationTargetOf, sub)        
@@ -94,18 +88,15 @@ def add_dbpedia_annotations_oersi(g, subject, title, description, keyword, keywo
                         annotation_uri = URIRef(f'{subject}_a=dbpedia-spotlite_p={item["p"]}_char={start_index},{end_index}')
                         dbpedia_resource = URIRef(annotation.get("@URI", ""))
                         
-                        add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
-                        #add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
+                        add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)                        
                         add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
                         add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
                         add_unique_triple(g,annotation_uri, nif.anchorOf, Literal(surface_form))
                         add_unique_triple(g,annotation_uri, nif.predLang, URIRef(lexvo[lang]))
                         add_unique_triple(g,annotation_uri, nif.referenceContext, context_uri)
-                        add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('http://www.dbpedia-spotlight.com'))
+                        add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('https://www.dbpedia-spotlight.org'))
                         add_unique_triple(g,annotation_uri, itsrdf.taConfidence, Literal(annotation.get("@similarityScore", "0")))
-                        add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, dbpedia_resource)        
-                        #add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
-                        #add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
+                        add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, dbpedia_resource)                                
                 else:
                     print(f"Error: {response.status_code} - {response.text}")
             except:
@@ -179,8 +170,7 @@ def add_wordnet_annotations_oersi(g, subject, title, description, keyword, keywo
                         ili_en = f'{ili_en_uri}{selected_word.ili}'
                         olia_pos = f'{olia_uri}{selected_word.pos}'
 
-                        add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)
-                        #add_unique_triple(g,annotation_uri, RDF.type, nif.OffsetBasedString)
+                        add_unique_triple(g,annotation_uri, RDF.type, nif.Phrase)                        
                         add_unique_triple(g,annotation_uri, RDF.type, URIRef(olia_pos))        
                         add_unique_triple(g,annotation_uri, nif.beginIndex, Literal(start_index, datatype=XSD.nonNegativeInteger))
                         add_unique_triple(g,annotation_uri, nif.endIndex, Literal(end_index, datatype=XSD.nonNegativeInteger))
@@ -189,9 +179,7 @@ def add_wordnet_annotations_oersi(g, subject, title, description, keyword, keywo
                         add_unique_triple(g,annotation_uri, nif.referenceContext, context_uri)                                       
                         add_unique_triple(g,annotation_uri, itsrdf.taAnnotatorsRef, URIRef('https://spacy.io'))
                         add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili))
-                        add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili_en))
-                        #add_unique_triple(g,annotation_uri, curriculum_ns.isAnnotationTargetOf, context_uri)
-                        #add_unique_triple(g,context_uri, curriculum_ns.hasAnnotationTarget, annotation_uri)
+                        add_unique_triple(g,annotation_uri, itsrdf.taIdentRef, URIRef(ili_en))                        
 
     return g        
 
